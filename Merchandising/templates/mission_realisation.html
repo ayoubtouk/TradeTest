@@ -1,0 +1,652 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <title>Réalisation - {{ mission.code }}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* Améliorations mobiles */
+    .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+    .tap { min-height: 44px; min-width: 44px; }
+    .scrollbar-hide::-webkit-scrollbar { display: none; }
+    .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
+</head>
+<body class="bg-gray-50">
+
+<div class="min-h-screen flex flex-col">
+  <!-- TOP: header -->
+  <header class="bg-white shadow-sm p-3 md:p-4 sticky top-0 z-30">
+    <div class="max-w-5xl mx-auto flex items-center justify-between gap-3">
+      <div class="min-w-0">
+        <h1 class="text-base md:text-xl font-bold text-indigo-700 truncate">Mission {{ mission.code }}</h1>
+        <p class="text-xs md:text-sm text-gray-600 truncate">{{ mission.pdv.nom }} — {{ mission.pdv.wilaya }}</p>
+      </div>
+      <div class="text-right hidden sm:block">
+        <p class="text-xs text-gray-500">Merch: {{ request.user.first_name }}</p>
+        <p class="text-xs text-gray-500">État: <strong>{{ mission.get_etat_display }}</strong></p>
+      </div>
+    </div>
+  </header>
+
+  <div class="flex-1 w-full">
+    <div class="max-w-5xl mx-auto px-3 md:px-6 py-4 md:py-6">
+      <div class="grid grid-cols-1 md:grid-cols-[220px,1fr] gap-4">
+        <!-- LEFT: menu (desktop) -->
+        <aside class="hidden md:block bg-white shadow-sm rounded-xl p-3 sticky top-[84px] h-max">
+          <h2 class="text-sm font-semibold text-indigo-600 mb-3">Étapes</h2>
+          <nav id="side-steps" class="space-y-2">
+            <!-- inject buttons via JS to keep active state synced -->
+          </nav>
+        </aside>
+
+        <!-- RIGHT: contenu des étapes -->
+        <main>
+          <!-- STEP 1 : Photos Avant -->
+          <section id="step-1" class="step-content bg-white p-4 md:p-5 rounded-xl shadow-sm mb-5">
+            <div class="flex items-center justify-between gap-2 mb-3">
+              <h2 class="text-base md:text-lg font-semibold">1 — Photos AVANT</h2>
+              <label class="flex items-center gap-2 text-[11px] md:text-xs text-gray-600 select-none">
+                <input id="auto-next-1" type="checkbox" class="rounded" /> Passer auto ➜ Données client
+              </label>
+            </div>
+
+            <!-- Chips filtres -->
+            <div class="sticky top-[76px] md:top-[84px] z-20 bg-white pt-1 pb-2 -mx-4 md:mx-0">
+              <div id="chips-avant" class="overflow-x-auto scrollbar-hide px-4 md:px-0">
+                <div class="flex gap-2"></div>
+              </div>
+            </div>
+
+            <!-- Uploader -->
+            <div class="mt-2 border-2 border-dashed rounded-2xl p-4 text-center">
+              <p class="text-sm text-gray-600">Glissez-déposez ou utilisez un des boutons :</p>
+              <div class="mt-3 flex flex-wrap items-center justify-center gap-2">
+                <input id="file-input-avant" type="file" accept="image/*" multiple class="hidden" />
+                <button id="pick-files-avant" class="tap px-4 py-2 rounded-lg bg-indigo-600 text-white">Choisir des fichiers</button>
+                <button id="open-camera-avant" class="tap px-4 py-2 rounded-lg bg-emerald-600 text-white">Prendre en direct</button>
+                <select id="default-category-avant" class="tap border rounded px-3 py-2 bg-white">
+                  {% for c in categories %}<option value="{{ c }}">{{ c }}</option>{% endfor %}
+                </select>
+              </div>
+              <p class="text-xs text-gray-500 mt-2">Catégorie par défaut pour les nouveaux fichiers (modifiable par fichier).</p>
+            </div>
+
+            <!-- File queue -->
+            <div class="mt-4" id="queue-avant" hidden>
+              <div class="flex items-center justify-between mb-2">
+                <h3 class="font-medium">En attente</h3>
+                <div class="flex items-center gap-2">
+                  <button id="clear-queue-avant" class="text-xs px-3 py-1 border rounded">Vider</button>
+                  <button id="upload-queue-avant" class="text-xs px-3 py-1 rounded bg-indigo-600 text-white">Envoyer (<span id="queue-count-avant">0</span>)</button>
+                </div>
+              </div>
+              <div id="queue-list-avant" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+            </div>
+
+            <!-- Galerie -->
+            <div class="mt-5">
+              <div class="flex items-center justify-between mb-2">
+                <h3 class="font-medium">Galerie</h3>
+                <button id="go-next-1" class="tap px-3 py-2 border rounded">Continuer</button>
+              </div>
+              <div id="gallery-avant" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3"></div>
+              <p id="empty-avant" class="text-sm text-gray-500 mt-2">Aucune photo pour le moment.</p>
+            </div>
+          </section>
+
+          <!-- STEP 2 : Données client -->
+          <section id="step-2" class="step-content hidden bg-white p-4 md:p-5 rounded-xl shadow-sm mb-5">
+            <div class="flex items-center justify-between mb-3">
+              <h2 class="text-base md:text-lg font-semibold">2 — Données CLIENT</h2>
+              <button id="back-to-1" class="tap px-3 py-2 border rounded">Retour</button>
+            </div>
+
+            <div class="mb-3 flex items-center gap-2">
+              <span class="text-sm text-gray-700">Filtrer :</span>
+              <div id="chips-client" class="overflow-x-auto scrollbar-hide flex-1"><div class="flex gap-2"></div></div>
+            </div>
+
+            <div id="client-products" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {% for p in client_products %}
+                <div class="prod-card border rounded-lg p-3 bg-gray-50" data-categorie="{{ p.categorie }}">
+                  <div class="flex items-start gap-3">
+                    {% if p.image %}
+                      <img src="{{ p.image.url }}" class="w-16 h-16 object-cover rounded" alt="{{ p.nom }}">
+                    {% else %}
+                      <div class="w-16 h-16 bg-gray-200 rounded flex items-center justify-center text-gray-500">No</div>
+                    {% endif %}
+                    <div class="flex-1 min-w-0">
+                      <div class="font-semibold truncate">{{ p.nom }} <span class="text-xs text-gray-500">({{ p.format }})</span></div>
+                      <div class="text-xs text-gray-500">{{ p.categorie }}</div>
+                    </div>
+                  </div>
+
+                  <div class="mt-3 grid gap-2">
+                    <label class="text-xs text-gray-600">Disponibilité</label>
+                    <select class="w-full input-disponibilite" data-prod="{{ p.id }}">
+                      <option value="1">Oui</option>
+                      <option value="0" selected>Non</option>
+                    </select>
+
+                    <label class="text-xs text-gray-600">Handling</label>
+                    <select class="w-full input-handling" data-prod="{{ p.id }}">
+                      <option value="1">Oui</option>
+                      <option value="0" selected>Non</option>
+                    </select>
+
+                    <label class="text-xs text-gray-600">Facing</label>
+                    <input type="number" min="0" class="w-full input-facing" data-prod="{{ p.id }}" placeholder="0">
+
+                    <label class="text-xs text-gray-600">Prix de vente</label>
+                    <input type="number" step="0.01" class="w-full input-prix" data-prod="{{ p.id }}" placeholder="0.00">
+
+                    <label class="text-xs text-gray-600">Stock</label>
+                    <input type="number" class="w-full input-stock" data-prod="{{ p.id }}" placeholder="0">
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+
+            <div class="mt-4 flex justify-end">
+              <button id="save-client-data" class="tap bg-indigo-600 text-white px-4 py-2 rounded">Sauvegarder & Photos après</button>
+            </div>
+          </section>
+
+          <!-- STEP 3 : Photos Après -->
+          <section id="step-3" class="step-content hidden bg-white p-4 md:p-5 rounded-xl shadow-sm mb-5">
+            <div class="flex items-center justify-between gap-2 mb-3">
+              <h2 class="text-base md:text-lg font-semibold">3 — Photos APRÈS</h2>
+              <div class="flex items-center gap-2">
+                <button id="back-to-2" class="tap px-3 py-2 border rounded">Retour</button>
+                <label class="flex items-center gap-2 text-[11px] md:text-xs text-gray-600 select-none">
+                  <input id="auto-next-3" type="checkbox" class="rounded" /> Passer auto ➜ Concurrents
+                </label>
+              </div>
+            </div>
+
+            <div class="sticky top-[76px] md:top-[84px] z-20 bg-white pt-1 pb-2 -mx-4 md:mx-0">
+              <div id="chips-apres" class="overflow-x-auto scrollbar-hide px-4 md:px-0">
+                <div class="flex gap-2"></div>
+              </div>
+            </div>
+
+            <div class="mt-2 border-2 border-dashed rounded-2xl p-4 text-center">
+              <p class="text-sm text-gray-600">Glissez-déposez ou utilisez un des boutons :</p>
+              <div class="mt-3 flex flex-wrap items-center justify-center gap-2">
+                <input id="file-input-apres" type="file" accept="image/*" multiple class="hidden" />
+                <button id="pick-files-apres" class="tap px-4 py-2 rounded-lg bg-indigo-600 text-white">Choisir des fichiers</button>
+                <button id="open-camera-apres" class="tap px-4 py-2 rounded-lg bg-emerald-600 text-white">Prendre en direct</button>
+                <select id="default-category-apres" class="tap border rounded px-3 py-2 bg-white">
+                  {% for c in categories %}<option value="{{ c }}">{{ c }}</option>{% endfor %}
+                </select>
+              </div>
+            </div>
+
+            <div class="mt-4" id="queue-apres" hidden>
+              <div class="flex items-center justify-between mb-2">
+                <h3 class="font-medium">En attente</h3>
+                <div class="flex items-center gap-2">
+                  <button id="clear-queue-apres" class="text-xs px-3 py-1 border rounded">Vider</button>
+                  <button id="upload-queue-apres" class="text-xs px-3 py-1 rounded bg-indigo-600 text-white">Envoyer (<span id="queue-count-apres">0</span>)</button>
+                </div>
+              </div>
+              <div id="queue-list-apres" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+            </div>
+
+            <div class="mt-5">
+              <div class="flex items-center justify-between mb-2">
+                <h3 class="font-medium">Galerie</h3>
+                <button id="go-next-3" class="tap px-3 py-2 border rounded">Continuer</button>
+              </div>
+              <div id="gallery-apres" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3"></div>
+              <p id="empty-apres" class="text-sm text-gray-500 mt-2">Aucune photo pour le moment.</p>
+            </div>
+          </section>
+
+          <!-- STEP 4 : Concurrents -->
+          <section id="step-4" class="step-content hidden bg-white p-4 md:p-5 rounded-xl shadow-sm mb-5">
+            <div class="flex items-center justify-between mb-3">
+              <h2 class="text-base md:text-lg font-semibold">4 — Relevés CONCURRENTS</h2>
+              <button id="back-to-3" class="tap px-3 py-2 border rounded">Retour</button>
+            </div>
+
+            <div class="mb-3 flex items-center gap-2">
+              <span class="text-sm text-gray-700">Filtrer :</span>
+              <div id="chips-conc" class="overflow-x-auto scrollbar-hide flex-1"><div class="flex gap-2"></div></div>
+            </div>
+
+            <div id="concurrent-products" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {% for pc in concurrent_products %}
+                <div class="conc-card border rounded-lg p-3 bg-gray-50" data-categorie="{{ pc.categorie }}">
+                  <div class="flex items-center gap-3">
+                    {% if pc.image %}
+                      <img src="{{ pc.image.url }}" class="w-16 h-16 object-cover rounded" alt="{{ pc.nom }}">
+                    {% else %}
+                      <div class="w-16 h-16 bg-gray-200 rounded flex items-center justify-center text-gray-500">No</div>
+                    {% endif %}
+                    <div>
+                      <div class="font-semibold">{{ pc.nom }}</div>
+                      <div class="text-xs text-gray-500">{{ pc.categorie }}</div>
+                    </div>
+                  </div>
+
+                  <div class="mt-3 grid gap-2">
+                    <label class="text-xs text-gray-600">Disponible</label>
+                    <select class="w-full input-conc-dispo" data-prod="{{ pc.id }}">
+                      <option value="1">Oui</option>
+                      <option value="0" selected>Non</option>
+                    </select>
+
+                    <label class="text-xs text-gray-600">Facing</label>
+                    <input type="number" class="w-full input-conc-facing" data-prod="{{ pc.id }}" placeholder="0">
+
+                    <label class="text-xs text-gray-600">Prix</label>
+                    <input type="number" step="0.01" class="w-full input-conc-prix" data-prod="{{ pc.id }}" placeholder="0.00">
+
+                    <label class="text-xs text-gray-600">Stock</label>
+                    <input type="number" class="w-full input-conc-stock" data-prod="{{ pc.id }}" placeholder="0">
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+
+            <div class="mt-4 flex justify-end">
+              <button id="save-concurrent-data" class="tap bg-indigo-600 text-white px-4 py-2 rounded">Sauvegarder & Terminer</button>
+            </div>
+          </section>
+
+          <!-- STEP 5 : Fin -->
+          <section id="step-5" class="step-content hidden bg-white p-4 md:p-5 rounded-xl shadow-sm mb-20 md:mb-5">
+            <h2 class="text-base md:text-lg font-semibold mb-3">5 — Terminer la visite</h2>
+            <p class="text-sm text-gray-600 mb-4">Si tout est bon, appuie sur "Terminer la visite".</p>
+            <div class="flex justify-between">
+              <button id="back-to-4" class="tap px-4 py-2 border rounded">Retour</button>
+              <button id="finish-visit" class="tap bg-green-600 text-white px-4 py-2 rounded">Terminer la visite</button>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom Nav (mobile) -->
+  <nav class="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur border-t z-40 safe-bottom">
+    <ul id="bottom-steps" class="grid grid-cols-5 text-[11px]">
+      <!-- inject via JS -->
+    </ul>
+  </nav>
+
+  <!-- Floating Upload Button (mobile convenience) -->
+  <button id="fab-upload" class="md:hidden fixed bottom-16 right-4 rounded-full shadow-lg bg-indigo-600 text-white w-12 h-12 grid place-items-center z-40">＋</button>
+</div>
+
+<!-- Camera Modal -->
+<div id="camera-modal" class="hidden fixed inset-0 z-50 bg-black/70">
+  <div class="absolute inset-x-0 bottom-0 sm:inset-0 sm:flex sm:items-center sm:justify-center">
+    <div class="bg-white w-full sm:w-[560px] rounded-t-2xl sm:rounded-2xl overflow-hidden">
+      <div class="p-3 border-b flex items-center justify-between">
+        <h3 class="font-semibold">Prendre une photo</h3>
+        <button id="close-camera" class="tap px-3 py-1 border rounded">Fermer</button>
+      </div>
+      <div class="p-3 space-y-3">
+        <video id="cam-video" class="w-full rounded-lg bg-black" playsinline></video>
+        <canvas id="cam-canvas" class="hidden"></canvas>
+        <div class="flex items-center justify-between">
+          <select id="cam-category" class="tap border rounded px-3 py-2 bg-white flex-1 mr-3"></select>
+          <button id="cam-shutter" class="tap px-4 py-2 rounded bg-emerald-600 text-white">Capturer</button>
+        </div>
+        <p class="text-xs text-gray-500">Astuce: utilisez la caméra arrière pour une meilleure qualité.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ---- CSRF helper ----
+  function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+      const cookies = document.cookie.split(';');
+      for (let i = 0; i < cookies.length; i++) {
+        const cookie = cookies[i].trim();
+        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+          cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+          break;
+        }
+      }
+    }
+    return cookieValue;
+  }
+  const csrftoken = getCookie('csrftoken');
+
+  // ---- State ----
+  const CATEGORIES = [{% for c in categories %}"{{ c|escapejs }}"{% if not forloop.last %},{% endif %}{% endfor %}];
+  const state = {
+    step: 1,
+    filters: { avant: 'Toutes', apres: 'Toutes', client: 'Toutes', conc: 'Toutes' },
+    queue: { avant: [], apres: [] }, // {file, cat, progress}
+    gallery: { avant: [], apres: [] }, // {url, cat}
+  };
+
+  // ---- Steps UI (desktop + bottom nav) ----
+  const stepsDef = [
+    { id:1, label:'Avant',   icon:'📷' },
+    { id:2, label:'Client',  icon:'🧾' },
+    { id:3, label:'Après',   icon:'✅' },
+    { id:4, label:'Conc.',   icon:'🏷️' },
+    { id:5, label:'Fin',     icon:'🏁' },
+  ];
+
+  function mountSideSteps(){
+    const side = document.getElementById('side-steps');
+    side.innerHTML = stepsDef.map(s=> `
+      <button class="tap w-full text-left flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 ${state.step===s.id?'bg-indigo-50 ring-1 ring-indigo-100':''}" data-step="${s.id}">
+        <span class="w-8 h-8 grid place-items-center rounded-full bg-indigo-100 text-indigo-700">${s.id}</span>
+        <span class="hidden md:inline">${s.label}</span>
+      </button>
+    `).join('');
+    side.querySelectorAll('button').forEach(b=> b.addEventListener('click', ()=> showStep(+b.dataset.step)));
+  }
+
+  function mountBottomSteps(){
+    const ul = document.getElementById('bottom-steps');
+    ul.innerHTML = stepsDef.map(s=> `
+      <li>
+        <button class="tap w-full flex flex-col items-center py-2 ${state.step===s.id?'text-indigo-600':''}" data-step="${s.id}">
+          <span class="text-lg">${s.icon}</span>
+          <span>${s.label}</span>
+        </button>
+      </li>`).join('');
+    ul.querySelectorAll('button').forEach(b=> b.addEventListener('click', ()=> showStep(+b.dataset.step)));
+  }
+
+  const sections = Array.from(document.querySelectorAll('.step-content'));
+  function showStep(n){
+    state.step = n;
+    sections.forEach((el, idx) => el.classList.toggle('hidden', (idx + 1) !== n));
+    mountSideSteps();
+    mountBottomSteps();
+  }
+  function enableStep(n){ /* already accessible via nav; keep hook for server-driven gating */ }
+
+  // init steps
+  showStep(1);
+
+  // ---- Chips component (stable, no blocage) ----
+  function renderChips(container, active, onChange, counts){
+    const wrap = container.querySelector('div');
+    const labels = ['Toutes', ...CATEGORIES];
+    wrap.innerHTML = labels.map(l=>{
+      const c = 'px-3 py-1 rounded-full border text-sm tap ' + (l===active? 'bg-indigo-600 text-white border-indigo-600':'bg-white text-gray-700');
+      const count = counts && counts[l];
+      return `<button class="chip ${c}" data-chip="${l}">${l}${(count!=null)?` <span class='ml-1 text-xs opacity-80'>(${count})</span>`:''}</button>`;
+    }).join('');
+    wrap.querySelectorAll('.chip').forEach(btn=> btn.onclick = () => onChange(btn.dataset.chip));
+  }
+
+  function countByCat(list){
+    const m = {};
+    list.forEach(x=> m[x.cat] = (m[x.cat]||0)+1);
+    return m;
+  }
+
+  // ---- Gallery rendering ----
+  function renderGallery(targetId, emptyId, list, filter){
+    const box = document.getElementById(targetId);
+    const empty = document.getElementById(emptyId);
+    const filtered = (filter==='Toutes')? list : list.filter(x => x.cat===filter);
+    box.innerHTML = filtered.map(x => `
+      <figure class="relative group">
+        <img src="${x.url}" class="w-full h-36 object-cover rounded-lg shadow-sm"/>
+        <figcaption class="absolute bottom-1 left-1 text-[10px] px-1.5 py-0.5 rounded bg-black/60 text-white">${x.cat}</figcaption>
+      </figure>`).join('');
+    empty.hidden = list.length>0;
+  }
+
+  // ---- QUEUE rendering ----
+  function renderQueue(kind){
+    const isAvant = (kind==='avant');
+    const wrap = document.getElementById(isAvant? 'queue-avant':'queue-apres');
+    const listEl = document.getElementById(isAvant? 'queue-list-avant':'queue-list-apres');
+    const counter = document.getElementById(isAvant? 'queue-count-avant':'queue-count-apres');
+    const queue = state.queue[kind];
+
+    wrap.hidden = queue.length===0;
+    counter.textContent = String(queue.length);
+
+    listEl.innerHTML = queue.map((q,idx)=>{
+      const objUrl = URL.createObjectURL(q.file);
+      return `
+      <div class="border rounded-lg p-2 flex gap-2 items-center">
+        <img src="${objUrl}" class="w-16 h-16 object-cover rounded"/>
+        <div class="flex-1 min-w-0">
+          <div class="text-xs truncate">${q.file.name||'camera.jpg'}</div>
+          <select data-idx="${idx}" class="mt-1 border rounded px-2 py-1 text-xs w-full queue-cat">
+            ${CATEGORIES.map(c=>`<option ${c===q.cat?'selected':''}>${c}</option>`).join('')}
+          </select>
+          <div class="h-1 bg-gray-200 rounded mt-2 overflow-hidden"><div class="h-1 bg-indigo-500" style="width:${q.progress||0}%;"></div></div>
+        </div>
+        <button data-idx="${idx}" class="remove-queue px-2 py-1 text-xs border rounded">X</button>
+      </div>`;
+    }).join('');
+
+    listEl.querySelectorAll('.queue-cat').forEach(sel=> sel.onchange = (e)=>{
+      const i = +e.target.dataset.idx; queue[i].cat = e.target.value;
+    });
+    listEl.querySelectorAll('.remove-queue').forEach(btn=> btn.onclick = (e)=>{
+      const i = +e.target.dataset.idx; queue.splice(i,1); renderQueue(kind);
+    });
+  }
+
+  async function uploadQueue(kind){
+    const isAvant = (kind==='avant');
+    const queue = state.queue[kind];
+    if (!queue.length) return;
+
+    for (let i=0; i<queue.length; i++){
+      const item = queue[i];
+      try{
+        const fd = new FormData();
+        fd.append('image', item.file);
+        fd.append('categorie', item.cat);
+        fd.append('photo_type', isAvant?'avant':'apres');
+        const res = await fetch("{% url 'upload_photo' mission.id %}", { method: 'POST', headers: { 'X-CSRFToken': csrftoken }, body: fd });
+        const data = await res.json();
+        item.progress = 100; renderQueue(kind);
+        const url = data?.url || data?.photo?.url || URL.createObjectURL(item.file);
+        state.gallery[kind].unshift({url, cat:item.cat});
+        const chipsId = isAvant? 'chips-avant':'chips-apres';
+        const galleryId = isAvant? 'gallery-avant':'gallery-apres';
+        const emptyId = isAvant? 'empty-avant':'empty-apres';
+        renderGallery(galleryId, emptyId, state.gallery[kind], state.filters[kind]);
+        renderChips(document.getElementById(chipsId), state.filters[kind], (lab)=>{
+          state.filters[kind] = lab;
+          renderGallery(galleryId, emptyId, state.gallery[kind], lab);
+          renderChips(document.getElementById(chipsId), lab, arguments.callee, countByCat(state.gallery[kind]));
+        }, countByCat(state.gallery[kind]));
+      }catch(e){ console.error(e); alert('Erreur upload'); }
+    }
+    queue.splice(0, queue.length);
+    renderQueue(kind);
+
+    // Option de passage auto
+    if (isAvant){ if (document.getElementById('auto-next-1').checked) showStep(2); }
+    else { if (document.getElementById('auto-next-3').checked) showStep(4); }
+  }
+
+  // ---- Filters for product cards (client/conc) – non bloquant ----
+  function mountCardFilter(chipsId, cardsSelector, scope){
+    const container = document.getElementById(chipsId);
+    const apply = (lab)=>{
+      state.filters[scope] = lab;
+      document.querySelectorAll(cardsSelector).forEach(card=>{
+        const cat = card.dataset.categorie;
+        card.style.display = (lab==='Toutes' || lab===cat) ? '' : 'none';
+      });
+      const cats = Array.from(document.querySelectorAll(cardsSelector)).map(c=>({cat:c.dataset.categorie}));
+      renderChips(container, lab, apply, countByCat(cats));
+    };
+    apply(state.filters[scope]);
+  }
+
+  // ---- File pickers + DnD ----
+  function setupUploader(kind){
+    const isAvant = (kind==='avant');
+    const pickBtn = document.getElementById(isAvant? 'pick-files-avant':'pick-files-apres');
+    const input = document.getElementById(isAvant? 'file-input-avant':'file-input-apres');
+    const defSel = document.getElementById(isAvant? 'default-category-avant':'default-category-apres');
+    const queueWrap = document.getElementById(isAvant? 'queue-avant':'queue-apres');
+    const uploadBtn = document.getElementById(isAvant? 'upload-queue-avant':'upload-queue-apres');
+    const clearBtn = document.getElementById(isAvant? 'clear-queue-avant':'clear-queue-apres');
+
+    pickBtn.onclick = ()=> input.click();
+    input.onchange = (e)=>{
+      const files = Array.from(e.target.files||[]);
+      files.forEach(f=> state.queue[kind].push({file:f, cat:defSel.value, progress:0}));
+      input.value = '';
+      renderQueue(kind);
+    };
+
+    const dropZone = pickBtn.closest('.border-2');
+    ['dragenter','dragover'].forEach(evt=> dropZone.addEventListener(evt, e=>{e.preventDefault(); dropZone.classList.add('ring-2','ring-indigo-400');}));
+    ;['dragleave','drop'].forEach(evt=> dropZone.addEventListener(evt, e=>{e.preventDefault(); dropZone.classList.remove('ring-2','ring-indigo-400');}));
+    dropZone.addEventListener('drop', (e)=>{
+      const files = Array.from(e.dataTransfer.files||[]).filter(f=> f.type.startsWith('image/'));
+      files.forEach(f=> state.queue[kind].push({file:f, cat:defSel.value, progress:0}));
+      renderQueue(kind);
+    });
+
+    clearBtn.onclick = ()=>{ state.queue[kind].length=0; renderQueue(kind); };
+    uploadBtn.onclick = ()=> uploadQueue(kind);
+  }
+
+  // ---- Live Camera (getUserMedia) ----
+  const camModal = document.getElementById('camera-modal');
+  const camVideo = document.getElementById('cam-video');
+  const camCanvas = document.getElementById('cam-canvas');
+  const camCat = document.getElementById('cam-category');
+  const closeCam = document.getElementById('close-camera');
+  let camStream = null; let camTarget = 'avant';
+
+  function fillCamCategories(){ camCat.innerHTML = CATEGORIES.map(c=>`<option>${c}</option>`).join(''); }
+
+  async function openCamera(target){
+    camTarget = target; fillCamCategories();
+    try{
+      camStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio:false });
+      camVideo.srcObject = camStream; await camVideo.play();
+      camModal.classList.remove('hidden');
+    }catch(e){ alert('Caméra non accessible. Essayez avec l\'upload.'); }
+  }
+  function closeCamera(){
+    camModal.classList.add('hidden');
+    if (camStream){ camStream.getTracks().forEach(t=> t.stop()); camStream = null; }
+  }
+
+  document.getElementById('open-camera-avant').onclick = ()=> openCamera('avant');
+  document.getElementById('open-camera-apres').onclick = ()=> openCamera('apres');
+  closeCam.onclick = closeCamera;
+
+  document.getElementById('cam-shutter').onclick = ()=>{
+    const video = camVideo; const canvas = camCanvas;
+    canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    canvas.toBlob((blob)=>{
+      if (!blob) return;
+      const file = new File([blob], 'camera.jpg', { type: 'image/jpeg' });
+      const cat = camCat.value;
+      state.queue[camTarget].push({ file, cat, progress:0 });
+      renderQueue(camTarget);
+    }, 'image/jpeg', 0.9);
+  };
+
+  // ---- Save buttons ----
+  document.getElementById('save-client-data').onclick = async ()=>{
+    const items = [];
+    document.querySelectorAll('#client-products .prod-card').forEach(card => {
+      const pid = card.querySelector('.input-disponibilite')?.dataset.prod; if (!pid) return;
+      items.push({
+        produit_id: parseInt(pid),
+        disponible: parseInt(card.querySelector('.input-disponibilite').value),
+        handling: parseInt(card.querySelector('.input-handling').value),
+        facing_share: card.querySelector('.input-facing').value || 0,
+        prix_vente: card.querySelector('.input-prix').value || null,
+        stock: card.querySelector('.input-stock').value || 0,
+      });
+    });
+    const res = await fetch("{% url 'save_client_products' mission.id %}", { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrftoken }, body: JSON.stringify({ items }) });
+    const data = await res.json();
+    if (data.success){ alert('Données client enregistrées'); showStep(3); }
+    else { alert('Erreur sauvegarde client'); }
+  };
+
+  document.getElementById('save-concurrent-data').onclick = async ()=>{
+    const items = [];
+    document.querySelectorAll('#concurrent-products .conc-card').forEach(card => {
+      const pid = card.querySelector('.input-conc-dispo')?.dataset.prod; if (!pid) return;
+      items.push({
+        produit_id: parseInt(pid),
+        disponible: parseInt(card.querySelector('.input-conc-dispo').value),
+        facing_share: card.querySelector('.input-conc-facing').value || 0,
+        prix_vente: card.querySelector('.input-conc-prix').value || null,
+        stock: card.querySelector('.input-conc-stock').value || 0,
+      });
+    });
+    const res = await fetch("{% url 'save_concurrent_products' mission.id %}", { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrftoken }, body: JSON.stringify({ items }) });
+    const data = await res.json();
+    if (data.success){ alert('Données concurrents enregistrées'); showStep(5); }
+    else { alert('Erreur sauvegarde concurrents'); }
+  };
+
+  document.getElementById('finish-visit').onclick = async ()=>{
+    if (!confirm('Terminer la visite ?')) return;
+    const res = await fetch("{% url 'finish_visit' mission.id %}", { method: 'POST', headers: { 'X-CSRFToken': csrftoken } });
+    const data = await res.json();
+    if (data.success){ alert('Mission terminée'); window.location.href = data.redirect || "{% url 'dashboard_merch' %}"; }
+    else { alert('Erreur lors de la fin de la mission'); }
+  };
+
+  // ---- Go/Back shortcuts ----
+  document.getElementById('go-next-1').onclick = ()=> showStep(2);
+  document.getElementById('go-next-3').onclick = ()=> showStep(4);
+  document.getElementById('back-to-1')?.addEventListener('click', ()=> showStep(1));
+  document.getElementById('back-to-2')?.addEventListener('click', ()=> showStep(2));
+  document.getElementById('back-to-3')?.addEventListener('click', ()=> showStep(3));
+  document.getElementById('back-to-4')?.addEventListener('click', ()=> showStep(4));
+
+  // ---- FAB (mobile) ----
+  document.getElementById('fab-upload').onclick = ()=>{
+    if (state.step===1) document.getElementById('pick-files-avant').click();
+    else if (state.step===3) document.getElementById('pick-files-apres').click();
+    else showStep(1);
+  };
+
+  // ---- Setup all ----
+  (function init(){
+    // Build chips for photos
+    renderChips(document.getElementById('chips-avant'), state.filters.avant, (lab)=>{ state.filters.avant=lab; renderGallery('gallery-avant','empty-avant',state.gallery.avant,lab); renderChips(document.getElementById('chips-avant'), lab, arguments.callee, countByCat(state.gallery.avant)); });
+    renderChips(document.getElementById('chips-apres'), state.filters.apres, (lab)=>{ state.filters.apres=lab; renderGallery('gallery-apres','empty-apres',state.gallery.apres,lab); renderChips(document.getElementById('chips-apres'), lab, arguments.callee, countByCat(state.gallery.apres)); });
+
+    // Filters for cards
+    mountCardFilter('chips-client', '.prod-card', 'client');
+    mountCardFilter('chips-conc', '.conc-card', 'conc');
+
+    // Uploaders
+    setupUploader('avant');
+    setupUploader('apres');
+
+    // Optional: pré-activer étapes si server-side
+    const etat = "{{ mission.etat }}";
+    if (etat === 'in_progress') { /* keep */ }
+
+    // Preload from server (optionnel : active si vous exposez un endpoint list)
+    // fetch('{% url "list_photos" mission.id %}?type=avant').then(r=>r.json()).then(d=>{ state.gallery.avant = d.items; renderGallery('gallery-avant','empty-avant',state.gallery.avant,state.filters.avant); renderChips(document.getElementById('chips-avant'), state.filters.avant, (lab)=>{ state.filters.avant=lab; renderGallery('gallery-avant','empty-avant',state.gallery.avant,lab); renderChips(document.getElementById('chips-avant'), lab, arguments.callee, countByCat(state.gallery.avant)); }, countByCat(state.gallery.avant)); }).catch(()=>{});
+    // fetch('{% url "list_photos" mission.id %}?type=apres').then(r=>r.json()).then(d=>{ state.gallery.apres = d.items; renderGallery('gallery-apres','empty-apres',state.gallery.apres,state.filters.apres); renderChips(document.getElementById('chips-apres'), state.filters.apres, (lab)=>{ state.filters.apres=lab; renderGallery('gallery-apres','empty-apres',state.gallery.apres,lab); renderChips(document.getElementById('chips-apres'), lab, arguments.callee, countByCat(state.gallery.apres)); }, countByCat(state.gallery.apres)); }).catch(()=>{});
+  })();
+</script>
+</body>
+</html>

@@ -1,0 +1,463 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Réalisation - {{ mission.code }}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50">
+
+<div class="min-h-screen flex">
+  <!-- LEFT: menu vertical fixe -->
+  <aside class="w-20 md:w-56 bg-white shadow-md p-4 sticky top-0 h-screen">
+    <div class="hidden md:block mb-6">
+      <h2 class="text-lg font-bold text-indigo-600">Étapes</h2>
+    </div>
+
+    <nav class="space-y-3">
+      <button id="step-btn-1" class="step-btn w-full text-left flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100" data-step="1">
+        <span class="w-8 h-8 flex items-center justify-center rounded-full bg-indigo-100 text-indigo-700">1</span>
+        <span class="hidden md:inline">Photos - Avant</span>
+      </button>
+
+      <button id="step-btn-2" class="step-btn w-full text-left flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100 opacity-50" data-step="2" disabled>
+        <span class="w-8 h-8 flex items-center justify-center rounded-full bg-indigo-100 text-indigo-700">2</span>
+        <span class="hidden md:inline">Données client</span>
+      </button>
+
+      <button id="step-btn-3" class="step-btn w-full text-left flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100 opacity-50" data-step="3" disabled>
+        <span class="w-8 h-8 flex items-center justify-center rounded-full bg-indigo-100 text-indigo-700">3</span>
+        <span class="hidden md:inline">Photos - Après</span>
+      </button>
+
+      <button id="step-btn-4" class="step-btn w-full text-left flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100 opacity-50" data-step="4" disabled>
+        <span class="w-8 h-8 flex items-center justify-center rounded-full bg-indigo-100 text-indigo-700">4</span>
+        <span class="hidden md:inline">Données concurrents</span>
+      </button>
+
+      <button id="step-btn-5" class="step-btn w-full text-left flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100 opacity-50" data-step="5" disabled>
+        <span class="w-8 h-8 flex items-center justify-center rounded-full bg-indigo-100 text-indigo-700">5</span>
+        <span class="hidden md:inline">Terminer</span>
+      </button>
+    </nav>
+
+    <div class="mt-6 text-xs text-gray-500 hidden md:block">
+      <p><strong>Mission:</strong> {{ mission.code }}</p>
+      <p class="mt-2"><strong>PDV:</strong> {{ mission.pdv.nom }}</p>
+    </div>
+  </aside>
+
+  <!-- RIGHT: contenu des étapes -->
+  <main class="flex-1 p-4 md:p-8">
+    <div class="max-w-4xl mx-auto">
+
+      <!-- Header -->
+      <div class="bg-white p-4 rounded-lg shadow-sm mb-6">
+        <div class="flex justify-between items-center">
+          <div>
+            <h1 class="text-xl font-bold text-indigo-700">Mission {{ mission.code }}</h1>
+            <p class="text-sm text-gray-600">{{ mission.pdv.nom }} — {{ mission.pdv.wilaya }}</p>
+          </div>
+          <div class="text-right">
+            <p class="text-sm text-gray-500">Merch: {{ request.user.first_name }}</p>
+            <p class="text-sm text-gray-500">État: <strong>{{ mission.get_etat_display }}</strong></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP CONTENT -->
+      <!-- STEP 1 : Photos Avant -->
+      <section id="step-1" class="step-content bg-white p-5 rounded-lg shadow mb-6">
+        <h2 class="text-lg font-semibold mb-3">1 — Photos AVANT par catégorie</h2>
+
+        <div class="mb-4">
+          <label class="block text-sm font-medium text-gray-700">Filtrer par catégorie</label>
+          <select id="filter-category" class="mt-1 w-full border rounded px-3 py-2">
+            <option value="">— Toutes —</option>
+            {% for c in categories %}
+              <option value="{{ c }}">{{ c }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="mb-4">
+          <label class="block text-sm font-medium text-gray-700">Choisir la catégorie pour la photo</label>
+          <select id="photo-category" class="mt-1 w-full border rounded px-3 py-2">
+            {% for c in categories %}
+              <option value="{{ c }}">{{ c }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="mb-4">
+          <label class="block text-sm font-medium text-gray-700">Prendre / uploader une photo (Avant)</label>
+          <input id="photo-input-avant" type="file" accept="image/*" class="mt-2" />
+          <div class="mt-3" id="preview-avant"></div>
+          <div class="mt-3 text-sm text-gray-600">Tu peux uploader plusieurs photos une par une.</div>
+        </div>
+
+        <div class="flex justify-end">
+          <button id="save-photos-avant" class="bg-indigo-600 text-white px-4 py-2 rounded-lg">Enregistrer photos avant</button>
+        </div>
+      </section>
+
+      <!-- STEP 2 : Données client -->
+      <section id="step-2" class="step-content hidden bg-white p-5 rounded-lg shadow mb-6">
+        <h2 class="text-lg font-semibold mb-3">2 — Remplir les données CLIENT</h2>
+        <p class="text-sm text-gray-500 mb-4">Filtrez par catégorie, modifiez les valeurs et sauvegardez.</p>
+
+        <div id="client-products" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {% for p in client_products %}
+            <div class="border rounded-lg p-3 bg-gray-50">
+              <div class="flex items-start gap-3">
+                {% if p.image %}
+                  <img src="{{ p.image.url }}" class="w-16 h-16 object-cover rounded" alt="{{ p.nom }}">
+                {% else %}
+                  <div class="w-16 h-16 bg-gray-200 rounded flex items-center justify-center text-gray-500">No</div>
+                {% endif %}
+                <div class="flex-1">
+                  <div class="font-semibold">{{ p.nom }} <span class="text-xs text-gray-500">({{ p.format }})</span></div>
+                  <div class="text-xs text-gray-500">{{ p.categorie }}</div>
+                </div>
+              </div>
+
+              <div class="mt-3 grid gap-2">
+                <label class="text-xs text-gray-600">Disponibilité</label>
+                <select class="w-full input-disponibilite" data-prod="{{ p.id }}">
+                  <option value="1">Oui</option>
+                  <option value="0" selected>Non</option>
+                </select>
+
+                <label class="text-xs text-gray-600">Handling (présenté)</label>
+                <select class="w-full input-handling" data-prod="{{ p.id }}">
+                  <option value="1">Oui</option>
+                  <option value="0" selected>Non</option>
+                </select>
+
+                <label class="text-xs text-gray-600">Facing (nb)</label>
+                <input type="number" min="0" class="w-full input-facing" data-prod="{{ p.id }}" placeholder="0">
+
+                <label class="text-xs text-gray-600">Prix de vente</label>
+                <input type="number" step="0.01" class="w-full input-prix" data-prod="{{ p.id }}" placeholder="0.00">
+
+                <label class="text-xs text-gray-600">Stock</label>
+                <input type="number" class="w-full input-stock" data-prod="{{ p.id }}" placeholder="0">
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+
+        <div class="mt-4 flex justify-between">
+          <button id="back-to-1" class="px-4 py-2 border rounded">Retour</button>
+          <button id="save-client-data" class="bg-indigo-600 text-white px-4 py-2 rounded">Sauvegarder et passer aux photos après</button>
+        </div>
+      </section>
+
+      <!-- STEP 3 : Photos Après -->
+      <section id="step-3" class="step-content hidden bg-white p-5 rounded-lg shadow mb-6">
+        <h2 class="text-lg font-semibold mb-3">3 — Photos APRÈS par catégorie</h2>
+
+        <div class="mb-4">
+          <label class="block text-sm font-medium text-gray-700">Choisir la catégorie</label>
+          <select id="photo-category-apres" class="mt-1 w-full border rounded px-3 py-2">
+            {% for c in categories %}
+              <option value="{{ c }}">{{ c }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="mb-4">
+          <input id="photo-input-apres" type="file" accept="image/*" class="mt-2" />
+          <div id="preview-apres" class="mt-3"></div>
+        </div>
+
+        <div class="flex justify-between">
+          <button id="back-to-2" class="px-4 py-2 border rounded">Retour</button>
+          <button id="save-photos-apres" class="bg-indigo-600 text-white px-4 py-2 rounded">Enregistrer photos après</button>
+        </div>
+      </section>
+
+      <!-- STEP 4 : Données concurrents -->
+      <section id="step-4" class="step-content hidden bg-white p-5 rounded-lg shadow mb-6">
+        <h2 class="text-lg font-semibold mb-3">4 — Relevés concurrents</h2>
+
+        <div id="concurrent-products" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {% for pc in concurrent_products %}
+            <div class="border rounded-lg p-3 bg-gray-50">
+              <div class="flex items-center gap-3">
+                {% if pc.image %}
+                  <img src="{{ pc.image.url }}" class="w-16 h-16 object-cover rounded" alt="{{ pc.nom }}">
+                {% else %}
+                  <div class="w-16 h-16 bg-gray-200 rounded flex items-center justify-center text-gray-500">No</div>
+                {% endif %}
+                <div>
+                  <div class="font-semibold">{{ pc.nom }}</div>
+                  <div class="text-xs text-gray-500">{{ pc.categorie }}</div>
+                </div>
+              </div>
+
+              <div class="mt-3 grid gap-2">
+                <label class="text-xs text-gray-600">Disponible</label>
+                <select class="w-full input-conc-dispo" data-prod="{{ pc.id }}">
+                  <option value="1">Oui</option>
+                  <option value="0" selected>Non</option>
+                </select>
+
+                <label class="text-xs text-gray-600">Facing</label>
+                <input type="number" class="w-full input-conc-facing" data-prod="{{ pc.id }}" placeholder="0">
+
+                <label class="text-xs text-gray-600">Prix</label>
+                <input type="number" step="0.01" class="w-full input-conc-prix" data-prod="{{ pc.id }}" placeholder="0.00">
+
+                <label class="text-xs text-gray-600">Stock</label>
+                <input type="number" class="w-full input-conc-stock" data-prod="{{ pc.id }}" placeholder="0">
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+
+        <div class="mt-4 flex justify-between">
+          <button id="back-to-3" class="px-4 py-2 border rounded">Retour</button>
+          <button id="save-concurrent-data" class="bg-indigo-600 text-white px-4 py-2 rounded">Sauvegarder et terminer</button>
+        </div>
+      </section>
+
+      <!-- STEP 5 : Fin -->
+      <section id="step-5" class="step-content hidden bg-white p-5 rounded-lg shadow mb-6">
+        <h2 class="text-lg font-semibold mb-3">5 — Terminer la visite</h2>
+        <p class="text-sm text-gray-600 mb-4">Si tout est bon, appuie sur "Terminer la visite".</p>
+        <div class="flex justify-between">
+          <button id="back-to-4" class="px-4 py-2 border rounded">Retour</button>
+          <button id="finish-visit" class="bg-green-600 text-white px-4 py-2 rounded">Terminer la visite</button>
+        </div>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<script>
+  // ---- CSRF helper ----
+  function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+      const cookies = document.cookie.split(';');
+      for (let i = 0; i < cookies.length; i++) {
+        const cookie = cookies[i].trim();
+        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+          cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+          break;
+        }
+      }
+    }
+    return cookieValue;
+  }
+  const csrftoken = getCookie('csrftoken');
+
+  // ---- Step system ----
+  let currentStep = 1;
+  const stepBtns = document.querySelectorAll('.step-btn');
+  const stepContents = document.querySelectorAll('.step-content');
+
+  function showStep(n) {
+    currentStep = n;
+    stepContents.forEach((el, idx) => {
+      el.classList.toggle('hidden', (idx + 1) !== n);
+    });
+    stepBtns.forEach(btn => btn.classList.toggle('opacity-50', btn.dataset.step != n));
+  }
+
+  function enableStep(n) {
+    const btn = document.querySelector('#step-btn-' + n);
+    if (btn) {
+      btn.classList.remove('opacity-50');
+      btn.disabled = false;
+      btn.addEventListener('click', () => showStep(n));
+    }
+  }
+
+  // Init
+  showStep(1);
+
+  // Back buttons
+  document.getElementById('back-to-1')?.addEventListener('click', () => showStep(1));
+  document.getElementById('back-to-2')?.addEventListener('click', () => showStep(2));
+  document.getElementById('back-to-3')?.addEventListener('click', () => showStep(3));
+  document.getElementById('back-to-4')?.addEventListener('click', () => showStep(4));
+
+  // ---- Step1: upload photos avant ----
+  document.getElementById('save-photos-avant').addEventListener('click', async () => {
+    const fileInput = document.getElementById('photo-input-avant');
+    const category = document.getElementById('photo-category').value;
+    if (!fileInput.files.length) return alert('Choisir une photo');
+
+    const fd = new FormData();
+    fd.append('image', fileInput.files[0]);
+    fd.append('categorie', category);
+    fd.append('photo_type', 'avant');
+
+    const res = await fetch("{% url 'upload_photo' mission.id %}", {
+      method: 'POST',
+      headers: { 'X-CSRFToken': csrftoken },
+      body: fd
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      alert('Photo avant enregistrée');
+      fileInput.value = '';
+      enableStep(2);
+      showStep(2);
+    } else {
+      alert('Erreur upload photo');
+    }
+  });
+
+  // Preview avant
+  document.getElementById('photo-input-avant').addEventListener('change', function() {
+    const preview = document.getElementById('preview-avant');
+    preview.innerHTML = '';
+    if (this.files && this.files[0]) {
+      const img = document.createElement('img');
+      img.src = URL.createObjectURL(this.files[0]);
+      img.className = 'w-40 h-28 object-cover rounded';
+      preview.appendChild(img);
+    }
+  });
+
+  // ---- Step2: save client data ----
+  document.getElementById('save-client-data').addEventListener('click', async () => {
+    const items = [];
+
+    document.querySelectorAll('#client-products .border').forEach(card => {
+      const pid = card.querySelector('.input-disponibilite')?.dataset.prod;
+      if (!pid) return;
+      items.push({
+        produit_id: parseInt(pid),
+        disponible: parseInt(card.querySelector('.input-disponibilite').value),
+        handling: parseInt(card.querySelector('.input-handling').value),
+        facing_share: card.querySelector('.input-facing').value || 0,
+        prix_vente: card.querySelector('.input-prix').value || null,
+        stock: card.querySelector('.input-stock').value || 0,
+      });
+    });
+
+    const res = await fetch("{% url 'save_client_products' mission.id %}", {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrftoken },
+      body: JSON.stringify({ items })
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      alert('Données client enregistrées');
+      enableStep(3);
+      showStep(3);
+    } else {
+      alert('Erreur sauvegarde client');
+    }
+  });
+
+  // ---- Step3: upload photos après ----
+  document.getElementById('save-photos-apres').addEventListener('click', async () => {
+    const fileInput = document.getElementById('photo-input-apres');
+    const category = document.getElementById('photo-category-apres').value;
+    if (!fileInput.files.length) return alert('Choisir une photo');
+
+    const fd = new FormData();
+    fd.append('image', fileInput.files[0]);
+    fd.append('categorie', category);
+    fd.append('photo_type', 'apres');
+
+    const res = await fetch("{% url 'upload_photo' mission.id %}", {
+      method: 'POST',
+      headers: { 'X-CSRFToken': csrftoken },
+      body: fd
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      alert('Photo après enregistrée');
+      fileInput.value = '';
+      enableStep(4);
+      showStep(4);
+    } else {
+      alert('Erreur upload photo après');
+    }
+  });
+
+  // Preview après
+  document.getElementById('photo-input-apres').addEventListener('change', function() {
+    const preview = document.getElementById('preview-apres');
+    preview.innerHTML = '';
+    if (this.files && this.files[0]) {
+      const img = document.createElement('img');
+      img.src = URL.createObjectURL(this.files[0]);
+      img.className = 'w-40 h-28 object-cover rounded';
+      preview.appendChild(img);
+    }
+  });
+
+  // ---- Step4: save concurrent data ----
+  document.getElementById('save-concurrent-data').addEventListener('click', async () => {
+    const items = [];
+    document.querySelectorAll('#concurrent-products .border').forEach(card => {
+      const pid = card.querySelector('.input-conc-dispo')?.dataset.prod;
+      if (!pid) return;
+      items.push({
+        produit_id: parseInt(pid),
+        disponible: parseInt(card.querySelector('.input-conc-dispo').value),
+        facing_share: card.querySelector('.input-conc-facing').value || 0,
+        prix_vente: card.querySelector('.input-conc-prix').value || null,
+        stock: card.querySelector('.input-conc-stock').value || 0,
+      });
+    });
+
+    const res = await fetch("{% url 'save_concurrent_products' mission.id %}", {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrftoken },
+      body: JSON.stringify({ items })
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      alert('Données concurrents enregistrées');
+      enableStep(5);
+      showStep(5);
+    } else {
+      alert('Erreur sauvegarde concurrents');
+    }
+  });
+
+  // ---- Step5: finish visit ----
+  document.getElementById('finish-visit').addEventListener('click', async () => {
+    if (!confirm('Terminer la visite ?')) return;
+    const res = await fetch("{% url 'finish_visit' mission.id %}", {
+      method: 'POST',
+      headers: { 'X-CSRFToken': csrftoken }
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      alert('Mission terminée');
+      window.location.href = data.redirect || "{% url 'dashboard_merch' %}";
+    } else {
+      alert('Erreur lors de la fin de la mission');
+    }
+  });
+
+  // ---- Init state from server ----
+  (function initStateFromServer() {
+    const etat = "{{ mission.etat }}";
+    if (etat === 'in_progress') {
+      enableStep(1);
+      enableStep(2);
+    }
+  })();
+</script>
+
+
+</body>
+</html>

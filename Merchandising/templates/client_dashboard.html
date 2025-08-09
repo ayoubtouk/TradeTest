@@ -1,0 +1,252 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Dashboard Client – Réalisations</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .scrollbar-hide::-webkit-scrollbar{display:none}.scrollbar-hide{-ms-overflow-style:none;scrollbar-width:none}
+    .tap{min-height:44px;min-width:44px}
+    .lightbox{display:none}.lightbox.active{display:flex}
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+
+  <!-- Header -->
+  <header class="sticky top-0 z-30 bg-gradient-to-r from-indigo-600 to-violet-600 text-white">
+    <div class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between gap-3">
+      <div class="min-w-0">
+        <h1 class="text-lg md:text-2xl font-bold tracking-tight">Dashboard Client – Réalisations</h1>
+        <p class="text-xs md:text-sm text-white/80 truncate">Vue simple des visites. Cliquez sur un PDV pour les détails.</p>
+      </div>
+      <div class="hidden sm:flex items-center gap-2">
+        <button id="btn-export" class="tap px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20">Exporter</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-4 md:px-6 py-4 md:py-6">
+    <!-- Filtres compacts (sans chips) -->
+    <section class="bg-white rounded-2xl p-3 md:p-4 shadow-sm mb-5">
+      <div class="flex flex-col gap-3">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-2">
+          <select id="filter-wilaya" class="tap border rounded-lg px-3 py-2">
+            <option value="">Toutes les wilayas</option>
+            {% for wilaya in filter_wilayas %}<option value="{{ wilaya }}">{{ wilaya }}</option>{% endfor %}
+          </select>
+          <select id="filter-region" class="tap border rounded-lg px-3 py-2">
+            <option value="">Toutes les régions</option>
+            {% for region in filter_regions %}<option value="{{ region }}">{{ region }}</option>{% endfor %}
+          </select>
+          <input id="search-pdv" class="tap border rounded-lg px-3 py-2" placeholder="Rechercher un PDV…"/>
+          <!-- Catégories dynamiques (liste déroulante) -->
+          <select id="filter-category" class="tap border rounded-lg px-3 py-2">
+            <option value="">Toutes les catégories</option>
+          </select>
+        </div>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+          <div class="flex items-center gap-2">
+            <label for="date-start" class="text-xs text-slate-500 w-20">Du</label>
+            <input type="date" id="date-start" class="tap border rounded-lg px-3 py-2 w-full" />
+          </div>
+          <div class="flex items-center gap-2">
+            <label for="date-end" class="text-xs text-slate-500 w-20">Au</label>
+            <input type="date" id="date-end" class="tap border rounded-lg px-3 py-2 w-full" />
+          </div>
+          <div class="flex items-center gap-3 md:col-span-2">
+            <button id="btn-clear" class="tap px-3 py-2 rounded-lg border">Effacer</button>
+            <button id="btn-apply" class="tap px-3 py-2 rounded-lg bg-indigo-600 text-white">Appliquer</button>
+            <button id="btn-refresh" class="tap px-3 py-2 rounded-lg bg-emerald-600 text-white">Actualiser</button>
+            <label class="flex items-center gap-2 text-xs text-slate-600">
+              <input id="auto-refresh" type="checkbox" class="scale-110" /> Auto (30s)
+            </label>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Liste des réalisations (vue COMPACT par défaut) -->
+    <section id="cards" class="space-y-4">
+      {% for real in realisations %}
+        <article class="card bg-white rounded-2xl shadow-sm p-4 group transition border border-transparent hover:border-indigo-100" data-wilaya="{{ real.wilaya }}" data-region="{{ real.region }}" data-pdv="{{ real.pdv }}" data-date="{{ real.date|date:'Y-m-d' }}">
+          <header class="flex items-start justify-between gap-3">
+            <div class="min-w-0">
+              <h3 class="text-base md:text-lg font-semibold truncate flex items-center gap-2">
+                <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-600 text-white text-xs">{{ forloop.counter }}</span>
+                PDV : {{ real.pdv }}
+              </h3>
+              <p class="text-xs md:text-sm text-slate-500 flex flex-wrap gap-x-3 gap-y-1 mt-1">
+                <span class="inline-flex items-center gap-1">📍 {{ real.wilaya }}</span>
+                <span class="inline-flex items-center gap-1">🧭 {{ real.region }}</span>
+                <span class="inline-flex items-center gap-1">👤 {{ real.merch }}</span>
+                <span class="inline-flex items-center gap-1">🗓️ {{ real.date }}</span>
+              </p>
+            </div>
+            <div class="shrink-0 flex gap-3 items-start">
+              <div class="text-right">
+                <div class="text-xs text-slate-500">Photos</div>
+                <div class="font-semibold text-sm"><span class="cnt-avant">0</span> AV • <span class="cnt-apres">0</span> AP</div>
+              </div>
+              <button class="tap px-3 py-1.5 rounded-lg border text-sm btn-toggle">Voir détails</button>
+            </div>
+          </header>
+
+          <!-- Bandeau résumé visuel (mosaïque) -->
+          <div class="mt-3 flex items-center gap-3">
+            <div class="preview-mosaic flex -space-x-2"></div>
+          </div>
+
+          <!-- DÉTAILS RICHES (au clic) -->
+          <div class="details hidden mt-4 border-t pt-4">
+            <!-- (Comparateur glisser supprimé) -->
+
+            <!-- Catégories: filtres locaux supprimés; affichage direct -->
+            {% for cat, photos in real.categories.items %}
+              <div class="cat-block" data-cat="{{ cat }}">
+                <div class="flex items-center justify-between mb-2">
+                  <h4 class="font-medium">Catégorie : {{ cat }}</h4>
+                </div>
+                <div class="grid grid-cols-2 gap-3 md:gap-4">
+                  <div>
+                    <p class="text-xs text-slate-500 mb-1">Avant</p>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      {% for url in photos.avant %}
+                        <img src="{{ url }}" alt="Avant" class="rounded-lg object-cover w-full h-24 md:h-28 cursor-pointer" onclick="openLightbox(this)"/>
+                      {% empty %}
+                        <p class="text-xs text-slate-400">Aucune photo</p>
+                      {% endfor %}
+                    </div>
+                  </div>
+                  <div>
+                    <p class="text-xs text-slate-500 mb-1">Après</p>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      {% for url in photos.apres %}
+                        <img src="{{ url }}" alt="Après" class="rounded-lg object-cover w-full h-24 md:h-28 cursor-pointer" onclick="openLightbox(this)"/>
+                      {% empty %}
+                        <p class="text-xs text-slate-400">Aucune photo</p>
+                      {% endfor %}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        </article>
+      {% empty %}
+        <p class="text-slate-500">Aucune réalisation trouvée.</p>
+      {% endfor %}
+    </section>
+  </main>
+
+  <!-- Lightbox -->
+  <div id="lightbox" class="lightbox fixed inset-0 z-50 bg-black/90 items-center justify-center p-4">
+    <button class="absolute top-4 right-4 tap px-3 py-1.5 rounded bg-white/10 text-white border border-white/20" onclick="closeLightbox()">Fermer ✕</button>
+    <img id="lightbox-img" class="max-w-[92vw] max-h-[82vh] rounded-lg shadow-2xl" src="" alt=""/>
+  </div>
+
+  <script>
+    // Utils
+    const $ = s => document.querySelector(s);
+    const $$ = s => Array.from(document.querySelectorAll(s));
+    const strip = s => (s||'').toString().normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
+
+    // Lightbox
+    function openLightbox(img){ $('#lightbox-img').src = img.src; $('#lightbox').classList.add('active'); }
+    function closeLightbox(){ $('#lightbox').classList.remove('active'); }
+    window.openLightbox = openLightbox; window.closeLightbox = closeLightbox;
+
+    // Toggle détails
+    $$('#cards .card').forEach(card => {
+      card.querySelector('.btn-toggle').addEventListener('click', () => {
+        const d = card.querySelector('.details');
+        d.classList.toggle('hidden');
+      });
+    });
+
+    // Peupler la liste déroulante des catégories à partir du DOM
+    (function buildCategoryDropdown(){
+      const cats = new Set($$('#cards .card .cat-block').map(b=> b.dataset.cat));
+      const sel = $('#filter-category');
+      [...cats].sort().forEach(c=>{
+        const opt = document.createElement('option');
+        opt.value = c; opt.textContent = c; sel.appendChild(opt);
+      });
+    })();
+
+    // Résumés compacts (mosaïque + compteurs)
+    function buildCompactSummaries(){
+      $$('#cards .card').forEach(card => {
+        const imgsAvant = $$('img[alt="Avant"]', card);
+        const imgsApres = $$('img[alt="Après"]', card);
+        card.querySelector('.cnt-avant').textContent = imgsAvant.length;
+        card.querySelector('.cnt-apres').textContent = imgsApres.length;
+        const mosaic = card.querySelector('.preview-mosaic');
+        const pool = [...imgsApres, ...imgsAvant].slice(0,3);
+        mosaic.innerHTML = pool.map(img => `<img src="${img.src}" class="w-10 h-10 md:w-12 md:h-12 rounded-lg object-cover ring-2 ring-white shadow -ml-0 first:ml-0"/>`).join('');
+      });
+    }
+    buildCompactSummaries();
+
+    // Filtres globaux
+    const fWilaya = $('#filter-wilaya');
+    const fRegion = $('#filter-region');
+    const fPDV   = $('#search-pdv');
+    const fCat   = $('#filter-category');
+    const dStart = $('#date-start');
+    const dEnd   = $('#date-end');
+
+    function filterCards(){
+      const w = strip(fWilaya.value);
+      const r = strip(fRegion.value);
+      const p = strip(fPDV.value);
+      const c = fCat.value; // valeur brute
+      const start = dStart.value ? new Date(dStart.value) : null;
+      const end   = dEnd.value ? new Date(dEnd.value) : null;
+      if (end) end.setHours(23,59,59,999);
+
+      $$('#cards .card').forEach(card => {
+        const cw = strip(card.dataset.wilaya);
+        const cr = strip(card.dataset.region);
+        const cp = strip(card.dataset.pdv);
+        const cd = card.dataset.date ? new Date(card.dataset.date) : null;
+
+        let show = true;
+        if (w && cw !== w) show = false;
+        if (r && cr !== r) show = false;
+        if (p && !cp.includes(p)) show = false;
+        if (start && cd && cd < start) show = false;
+        if (end && cd && cd > end) show = false;
+        if (c){
+          const catsInCard = new Set($$('[data-cat]', card).map(x=>x.dataset.cat));
+          if (!catsInCard.has(c)) show = false;
+        }
+        card.style.display = show ? '' : 'none';
+      });
+    }
+
+    $('#btn-apply').onclick = filterCards;
+    $('#btn-clear').onclick = () => {
+      fWilaya.value=''; fRegion.value=''; fPDV.value=''; fCat.value=''; dStart.value=''; dEnd.value=''; filterCards();
+    };
+
+    // Actualiser (temps réel simple = rechargement)
+    $('#btn-refresh').onclick = () => { window.location.reload(); };
+
+    // Auto-refresh 30s
+    let autoTimer=null; const auto = $('#auto-refresh');
+    auto.addEventListener('change', () => {
+      if (auto.checked){
+        autoTimer = setInterval(()=>{ window.location.reload(); }, 30000);
+      } else if (autoTimer){
+        clearInterval(autoTimer); autoTimer=null;
+      }
+    });
+
+    // Init
+    filterCards();
+    $('#btn-export').onclick = () => { window.print(); };
+  </script>
+</body>
+</html>

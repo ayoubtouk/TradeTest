@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Tableau de bord Merchandiser</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+</head>
+<body class="bg-gray-50 text-gray-800 font-sans">
+
+    <!-- Menu -->
+    <header class="bg-white shadow-md fixed top-0 left-0 w-full z-10">
+        <div class="max-w-6xl mx-auto flex justify-between items-center px-4 py-3">
+            <h1 class="text-xl font-bold text-blue-600">IRIS TRADE</h1>
+            <nav class="space-x-6 text-gray-700 font-medium">
+                <a href="#" class="hover:text-blue-500">Missions</a>
+                <a href="#" class="hover:text-blue-500">Profil</a>
+                <a href="#" class="hover:text-red-500">Déconnexion</a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Contenu -->
+    <div class="min-h-screen flex flex-col items-center pt-24 pb-10 px-4">
+
+        <h2 class="text-2xl font-semibold mb-6 text-gray-700">Vos missions du jour</h2>
+
+        {% if missions %}
+            <div class="grid gap-6 w-full max-w-3xl">
+                {% for mission in missions %}
+                    <div class="bg-white border border-gray-200 shadow-md rounded-xl p-5">
+                        <div class="flex justify-between items-center">
+                            <h3 class="text-lg font-bold text-blue-700">{{ mission.pdv.nom }}</h3>
+                            <span class="px-3 py-1 rounded-full text-white text-sm
+                                {% if mission.etat == 'planned' %} bg-yellow-500
+                                {% elif mission.etat == 'in_progress' %} bg-blue-500
+                                {% elif mission.etat == 'done' %} bg-green-600
+                                {% elif mission.etat == 'failed' %} bg-red-600
+                                {% endif %}
+                            ">
+                                {{ mission.get_etat_display }}
+                            </span>
+                        </div>
+
+                        <p class="text-sm text-gray-600 mt-1">
+                            📍 {{ mission.pdv.adresse }}<br>
+                            🏙 Wilaya : {{ mission.pdv.wilaya }} — Région : {{ mission.pdv.region }}<br>
+                            📅 Date : <strong>{{ mission.date_mission }}</strong>
+                        </p>
+                        <p class="mt-2 text-xs text-gray-400">Code mission : {{ mission.code }}</p>
+
+                        <!-- Carte -->
+                        <div id="map-{{ mission.id }}" class="h-64 mt-4 rounded-lg border border-gray-300"></div>
+
+                        <!-- Bouton démarrer -->
+                        <form method="POST" action="{% url 'start_visit' mission.id %}" class="mt-4">
+                            {% csrf_token %}
+                            <input type="hidden" name="latitude" id="lat-{{ mission.id }}">
+                            <input type="hidden" name="longitude" id="lng-{{ mission.id }}">
+                            <button type="submit" class="w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-2 rounded-lg">
+                                ✅ Démarrer la visite
+                            </button>
+                        </form>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="text-gray-500 text-center mt-20">
+                🚫 Aucune mission planifiée pour aujourd’hui.
+            </div>
+        {% endif %}
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            {% for mission in missions %}
+                let map{{ mission.id }} = L.map('map-{{ mission.id }}').setView([36.752778, 3.042222], 15); // Alger par défaut
+
+                // Fond de carte
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    maxZoom: 19,
+                }).addTo(map{{ mission.id }});
+
+                // Marqueur position
+                let marker{{ mission.id }} = null;
+                let accuracyCircle{{ mission.id }} = null;
+
+                if (navigator.geolocation) {
+                    navigator.geolocation.watchPosition(
+                        pos => {
+                            let lat = pos.coords.latitude;
+                            let lng = pos.coords.longitude;
+                            let accuracy = pos.coords.accuracy;
+
+                            // Sauvegarde dans les inputs cachés
+                            document.getElementById("lat-{{ mission.id }}").value = lat;
+                            document.getElementById("lng-{{ mission.id }}").value = lng;
+
+                            // Mise à jour carte
+                            if (!marker{{ mission.id }}) {
+                                marker{{ mission.id }} = L.marker([lat, lng]).addTo(map{{ mission.id }});
+                                accuracyCircle{{ mission.id }} = L.circle([lat, lng], { radius: accuracy }).addTo(map{{ mission.id }});
+                                map{{ mission.id }}.setView([lat, lng], 17);
+                            } else {
+                                marker{{ mission.id }}.setLatLng([lat, lng]);
+                                accuracyCircle{{ mission.id }}.setLatLng([lat, lng]).setRadius(accuracy);
+                            }
+                        },
+                        err => {
+                            console.error("Erreur GPS:", err);
+                            alert("Impossible de récupérer la position GPS.");
+                        },
+                        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                    );
+                } else {
+                    alert("La géolocalisation n'est pas supportée par ce navigateur.");
+                }
+            {% endfor %}
+        });
+    </script>
+
+</body>
+</html>
